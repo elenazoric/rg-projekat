@@ -183,6 +183,8 @@ int main() {
     ourModel.SetShaderTextureNamePrefix("material.");
 
     stbi_set_flip_vertically_on_load(false);
+    Model miniIsland("resources/objects/islanddd/island.obj");
+    ourModel.SetShaderTextureNamePrefix("material.");
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
@@ -358,6 +360,14 @@ int main() {
         ourShader.setMat4("model", model);
 
         ourModel.Draw(ourShader);
+
+        // render the loaded model
+        model = glm::translate(model,
+                               glm::vec3(-100.0f, 20.0f, -150.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(0.3f));    // it's a bit too big for our scene, so scale it down
+        ourShader.setMat4("model", model);
+
+        miniIsland.Draw(ourShader);
 
 
         model = glm::mat4(1.0f);
