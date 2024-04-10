@@ -363,6 +363,22 @@ int main() {
         ourShader.setMat4("model", model);
         miniIsland.Draw(ourShader);
 
+        // render window
+        ourShader.setBool("window", true);
+
+        glBindVertexArray(windowVAO);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, windowDiff);
+        glEnable(GL_CULL_FACE);   // window won't be visible if looked from bellow
+        glCullFace(GL_BACK);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-10.0f, 3.0f, -20.0f));
+        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(8.0f));
+        ourShader.setMat4("model", model);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 6.0f, 0.0f));
@@ -370,15 +386,10 @@ int main() {
         model = glm::scale(model, glm::vec3(20.0f));
         ourShader.setMat4("model", model);
 
-        ourShader.setBool("window", true);
-        // render window
-        glBindVertexArray(windowVAO);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, windowDiff);
-        glEnable(GL_CULL_FACE);   // window won't be visible if looked from bellow
-        glCullFace(GL_BACK);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+
         glDisable(GL_CULL_FACE);
+
         ourShader.setBool("window", false);
 
 
