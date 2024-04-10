@@ -44,11 +44,8 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-//proba
-float shininesFloat = 32.0f;
 bool blinn = false;
 bool blinnKeyPressed = false;
-
 
 struct PointLight {
     glm::vec3 position;
@@ -146,9 +143,6 @@ int main() {
         return -1;
     }
 
-    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    stbi_set_flip_vertically_on_load(false);
-
     programState = new ProgramState;
     programState->LoadFromFile("resources/program_state.txt");
     if (programState->ImGuiEnabled) {
@@ -159,8 +153,6 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     (void) io;
-
-
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 460 core");
@@ -173,19 +165,22 @@ int main() {
 
     // build and compile shaders
     // -------------------------
-    Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
+    Shader ourShader("resources/shaders/lighting.vs", "resources/shaders/lighting.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
+
 
     // load models
     // -----------
     stbi_set_flip_vertically_on_load(false);
-    Model ourModel("resources/objects/island2/island2.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
 
-    stbi_set_flip_vertically_on_load(false);
-    Model miniIsland("resources/objects/islanddd/island.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    Model islandModel("resources/objects/island/island.obj");
+    islandModel.SetShaderTextureNamePrefix("material.");
 
+    Model miniIsland("resources/objects/miniIsland/miniIsland.obj");
+    miniIsland.SetShaderTextureNamePrefix("material.");
+
+
+    //lighting
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
     pointLight.ambient = glm::vec3(0.5, 0.5, 0.5);
@@ -195,6 +190,22 @@ int main() {
     pointLight.constant = 1.0f;
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
+
+
+    // window plain coordinates
+    float windowVertices[] = {
+            // positions          // normals          // texture coords
+            0.5f,  0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  1.0f,  1.0f,  // top right
+            0.5f, -0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  1.0f,  0.0f,  // bottom right
+            -0.5f, -0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  0.0f,  0.0f,  // bottom left
+            -0.5f,  0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  0.0f,  1.0f   // top left
+    };
+
+    // window vertices for use in EBO
+    unsigned int windowIndices[] = {
+            0, 1, 3,  // first Triangle
+            1, 2, 3   // second Triangle
+    };
 
     float skyboxVertices[] = {
             // positions
@@ -241,6 +252,26 @@ int main() {
             1.0f, -1.0f,  1.0f
     };
 
+    // window setup
+    unsigned int windowVAO, windowVBO, windowEBO;
+    glGenVertexArrays(1, &windowVAO);
+    glGenBuffers(1, &windowVBO);
+    glGenBuffers(1, &windowEBO);
+
+    glBindVertexArray(windowVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, windowVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(windowVertices), windowVertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, windowEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(windowIndices), windowIndices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6*sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+
     // skybox VAO
     unsigned int skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
@@ -261,50 +292,15 @@ int main() {
                     FileSystem::getPath("resources/textures/skybox/back.png")
             };
 
+    //load textures
+    unsigned int windowDiff = loadTexture(FileSystem::getPath("resources/textures/window.png").c_str());
     unsigned int cubemapTexture = loadCubemap(faces);
 
     // shader configuration
     // -------------------
-
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
-
-    // window plain coordinates
-    float windowVertices[] = {
-            // positions          // normals          // texture coords
-            0.5f,  0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  1.0f,  1.0f,  // top right
-            0.5f, -0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  1.0f,  0.0f,  // bottom right
-            -0.5f, -0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  0.0f,  0.0f,  // bottom left
-            -0.5f,  0.5f,  0.0f,  0.0f, 0.0f, -1.0f,  0.0f,  1.0f   // top left
-    };
-
-    // window vertices for use in EBO
-    unsigned int windowIndices[] = {
-            0, 1, 3,  // first Triangle
-            1, 2, 3   // second Triangle
-    };
-
-    // window setup
-    unsigned int windowVAO, windowVBO, windowEBO;
-    glGenVertexArrays(1, &windowVAO);
-    glGenBuffers(1, &windowVBO);
-    glGenBuffers(1, &windowEBO);
-
-    glBindVertexArray(windowVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, windowVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(windowVertices), windowVertices, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, windowEBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(windowIndices), windowIndices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3*sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6*sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    unsigned int windowDiff = loadTexture(FileSystem::getPath("resources/textures/img_6.png").c_str());
 
     // render loop
     // -----------
@@ -325,7 +321,7 @@ int main() {
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // don't forget to enable shader before setting uniforms
+
         ourShader.use();
 
         ourShader.setBool("blinn", blinn);
@@ -344,7 +340,9 @@ int main() {
         ourShader.setFloat("pointLight.linear", pointLight.linear);
         ourShader.setFloat("pointLight.quadratic", pointLight.quadratic);
         ourShader.setVec3("viewPosition", programState->camera.Position);
-        ourShader.setFloat("material.shininess", shininesFloat);
+        ourShader.setFloat("material.shininess", 32.0f);
+
+
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
                                                 (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
@@ -352,21 +350,17 @@ int main() {
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        // render the loaded model
+        // render island
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model,
-                               programState->modelPosition); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(programState->modelScale));    // it's a bit too big for our scene, so scale it down
+        model = glm::translate(model,programState->modelPosition);
+        model = glm::scale(model, glm::vec3(programState->modelScale));
         ourShader.setMat4("model", model);
+        islandModel.Draw(ourShader);
 
-        ourModel.Draw(ourShader);
-
-        // render the loaded model
-        model = glm::translate(model,
-                               glm::vec3(-100.0f, 20.0f, -150.0f)); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3(0.3f));    // it's a bit too big for our scene, so scale it down
+        // render mini island
+        model = glm::translate(model,glm::vec3(-100.0f, 20.0f, -150.0f));
+        model = glm::scale(model, glm::vec3(0.3f));
         ourShader.setMat4("model", model);
-
         miniIsland.Draw(ourShader);
 
 
@@ -376,18 +370,15 @@ int main() {
         model = glm::scale(model, glm::vec3(20.0f));
         ourShader.setMat4("model", model);
 
-
         ourShader.setBool("window", true);
-
         // render window
         glBindVertexArray(windowVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, windowDiff);
-        glEnable(GL_CULL_FACE);     // window won't be visible if looked from bellow
+        glEnable(GL_CULL_FACE);   // window won't be visible if looked from bellow
         glCullFace(GL_BACK);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
         glDisable(GL_CULL_FACE);
-
         ourShader.setBool("window", false);
 
 
@@ -489,17 +480,13 @@ void DrawImGui(ProgramState *programState) {
     {
         static float f = 0.0f;
         ImGui::Begin("Hello window");
-        ImGui::Text("Hello text");
-        ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
-        ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        ImGui::DragFloat3("Model position", (float*)&programState->modelPosition);
+
         ImGui::DragFloat("Model scale", &programState->modelScale, 0.05, 0.1, 4.0);
 
         ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.quadratic", &programState->pointLight.quadratic, 0.05, 0.0, 1.0);
 
-        ImGui::SliderFloat("material.shininess", &shininesFloat, 0.0, 512.0);
         ImGui::End();
     }
 
