@@ -67,7 +67,7 @@ struct ProgramState {
     float modelScale = 0.1f;
     PointLight pointLight;
     ProgramState()
-            : camera(glm::vec3(0.0f, 0.0f, 25.0f)) {}
+            : camera(glm::vec3(10.0f, 10.0f, 30.0f)) {}
 
     void SaveToFile(std::string filename);
 
@@ -293,7 +293,9 @@ int main() {
             };
 
     //load textures
-    unsigned int windowDiff = loadTexture(FileSystem::getPath("resources/textures/window.png").c_str());
+    unsigned int windowDiff = loadTexture(FileSystem::getPath("resources/textures/glass.png").c_str());
+    unsigned int windowSpec = loadTexture(FileSystem::getPath("resources/textures/glassSpec.png").c_str());
+
     unsigned int cubemapTexture = loadCubemap(faces);
 
     // shader configuration
@@ -369,6 +371,8 @@ int main() {
         glBindVertexArray(windowVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, windowDiff);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, windowSpec);
         glEnable(GL_CULL_FACE);   // window won't be visible if looked from bellow
         glCullFace(GL_BACK);
 
